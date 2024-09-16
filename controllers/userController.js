@@ -1,8 +1,85 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
+const axios = require("axios");
 const jwt = require("jsonwebtoken");
-const { generateToken } = require("../utils/jwtUtils");
+const {
+  generateToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} = require("../utils/jwtUtils");
+const generateUsername = (name) => {
+  const usernameBase = name.toLowerCase().replace(/[^a-zA-Z0-9]/g, "");
+  const randomSuffix = Math.floor(Math.random() * 1000);
+  return `${usernameBase}${randomSuffix}`;
+};
 
+exports.googleAuth = async (req, res) => {
+  try {
+    const { googleToken } = req.body;
+
+    if (!googleToken) {
+      return res.status(400).json({ message: "Google token is required" });
+    }
+
+    // Verify Google token with Google's tokeninfo endpoint
+    const response = await axios.get(
+      `https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${googleToken}`
+    );
+
+    if (response.status !== 200) {
+      return res.status(400).json({ message: "Invalid Google token" });
+    }
+
+    const { sub: googleId, email, name, picture } = response.data;
+    const [firstName, lastName] = name.split(" "); // Simple split, adjust if needed
+
+    // Generate a random username including the user's name
+    const username = generateUsername(firstName);
+
+    // Check if the user already exists
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // User exists, generate and return access and refresh tokens
+      const accessToken = generateToken(user._id);
+      const refreshToken = generateRefreshToken(user._id);
+      user.refreshToken = refreshToken;
+      await user.save();
+      return res.status(200).json({
+        accessToken,
+        refreshToken,
+        expires_in: process.env.JWT_EXPIRATION,
+      });
+    }
+
+    // User does not exist, create a new user
+    user = new User({
+      googleId,
+      firstName,
+      lastName,
+      username,
+      email,
+      profilePicture: picture || "default-profile.png", // Use Google profile picture or default
+    });
+
+    await user.save();
+
+    // Generate and return access and refresh tokens
+    const accessToken = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+    user.refreshToken = refreshToken; // Save refresh token to the user document
+    await user.save();
+
+    return res.status(201).json({
+      accessToken,
+      refreshToken,
+      expires_in: process.env.JWT_EXPIRATION,
+    });
+  } catch (error) {
+    console.error("Error in googleAuth controller:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 // Register a new user
 exports.createUser = async (req, res) => {
   try {
@@ -147,7 +224,9 @@ exports.createUser = async (req, res) => {
         deactivationReason: user.deactivationReason,
         userSettings: user.userSettings,
       },
+
       token,
+      expires_in: process.env.JWT_EXPIRATION,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -158,22 +237,75 @@ exports.createUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
 
+  console.log("Email:", email); // Log email
+  console.log("Password:", password); // Log password
+
   try {
+    // Find user by email
     const user = await User.findOne({ email });
 
-    if (user && (await bcrypt.compare(password, user.password))) {
-      res.json({
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        token: generateToken(user._id),
-      });
+    if (user) {
+      // Compare password
+      const isMatch = await bcrypt.compare(password, user.password);
+
+      if (isMatch) {
+        // Generate tokens
+        const accessToken = generateToken(user._id);
+        const refreshToken = generateRefreshToken(user._id);
+
+        // Save refresh token to the user document
+        user.refreshToken = refreshToken;
+        await user.save();
+
+        // Respond with user data and tokens
+        return res.json({
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          accessToken,
+          refreshToken,
+          expires_in: process.env.JWT_EXPIRATION,
+        });
+      } else {
+        // Invalid password
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
     } else {
-      res.status(401).json({ message: "Invalid email or password" });
+      // User not found
+      return res.status(401).json({ message: "Invalid email or password" });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Login error:", error.message); // Log error message
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+exports.refreshToken = async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: "Refresh token required" });
+  }
+
+  try {
+    console.log(refreshToken);
+    // Verify the refresh token
+    const payload = verifyRefreshToken(refreshToken);
+
+    console.log(payload);
+    // Find user by ID
+    const user = await User.findById(payload.id);
+    if (!user || user.refreshToken !== refreshToken) {
+      return res.status(401).json({ message: "Invalid refresh token" });
+    }
+
+    // Generate a new access token
+    const accessToken = generateToken(user._id);
+
+    res.json({ accessToken, expires_in: process.env.JWT_EXPIRATION });
+  } catch (error) {
+    res.status(401).json({ message: "Invalid refresh token" });
   }
 };
 

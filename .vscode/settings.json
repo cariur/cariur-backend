@@ -1,0 +1,10 @@
+{
+  "editor.fontFamily": "Fira Code Light, monospace",
+  "editor.fontLigatures": true,
+  "terminal.integrated.fontFamily": "monospace",
+  "editor.fontSize": 13,
+  "editor.cursorBlinking": "smooth",
+  "editor.cursorSmoothCaretAnimation": "on",
+  "git.decorations.enabled": false,
+  "zenMode.hideActivityBar": false
+}

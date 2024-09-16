@@ -20,14 +20,14 @@ const userSchema = new mongoose.Schema(
 
     profilePicture: {
       type: String,
-      default: "default-profile.png",
+      default: "https://github.com/shadcn.png",
     },
 
     bio: {
       type: String,
       maxlength: 500,
     },
-
+    refreshToken: { type: String },
     skills: [{ type: String }],
 
     // ===========================

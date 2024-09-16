@@ -26,7 +26,16 @@ exports.createProject = async (req, res) => {
 // Get all projects
 exports.getAllProjects = async (req, res) => {
   try {
-    const projects = await Project.find().sort({ createdAt: -1 });
+    const projects = await Project.find()
+      .populate({
+        path: "user",
+        select: "firstName lastName email profilePicture", // Select only the required fields
+      })
+      .populate({
+        path: "collaborators",
+        select: "firstName lastName email profilePicture", // Select only the required fields
+      })
+      .sort({ createdAt: -1 });
     res.status(200).json(projects);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -40,6 +49,7 @@ exports.getProjectById = async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
+
     res.status(200).json(project);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -190,19 +200,26 @@ exports.addComment = async (req, res) => {
 // Search for projects
 exports.searchProjects = async (req, res) => {
   try {
-    const { query } = req.query; // Extract 'query' from query parameters
+    const { query } = req.query; // Make sure 'query' is coming from the query string
 
     if (!query) {
       return res.status(400).json({ message: "Search query is required" });
     }
 
     const projects = await Project.find({
-      $text: { $search: query }, // Use MongoDB text search or another search strategy
+      $text: { $search: query }, // Perform text search in MongoDB
     }).sort({ createdAt: -1 });
+
+    if (projects.length === 0) {
+      return res.status(404).json({ message: "No projects found" });
+    }
 
     res.status(200).json(projects);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(500).json({
+      message: "An error occurred while searching for projects",
+      error: error.message,
+    });
   }
 };
 
