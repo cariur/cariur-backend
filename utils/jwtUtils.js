@@ -1,24 +1,49 @@
+// utils/jwtUtils.js
 const jwt = require("jsonwebtoken");
 
-// Original functions for access tokens
-exports.generateToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRATION,
-  });
+const JWT_SECRET = process.env.JWT_SECRET;
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
+
+const generateToken = (userId) => {
+  return jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: "15m" }); // 15 minutes
 };
 
-exports.verifyToken = (token) => {
-  return jwt.verify(token, process.env.JWT_SECRET);
+const generateRefreshToken = (userId) => {
+  return jwt.sign({ id: userId }, REFRESH_TOKEN_SECRET, { expiresIn: "7d" }); // 7 days
 };
 
-// New function for generating refresh tokens
-exports.generateRefreshToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.REFRESH_TOKEN_SECRET, {
-    expiresIn: process.env.REFRESH_TOKEN_EXPIRATION,
-  });
+const verifyToken = (token) => {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    console.error("Token verification error:", error);
+    throw new Error("Invalid or expired token");
+  }
 };
 
-// New function for verifying refresh tokens
-exports.verifyRefreshToken = (token) => {
-  return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+const verifyRefreshToken = (token) => {
+  try {
+    return jwt.verify(token, REFRESH_TOKEN_SECRET);
+  } catch (error) {
+    console.error("Refresh token verification error:", error);
+    throw new Error("Invalid or expired refresh token");
+  }
+};
+
+const rotateRefreshToken = (oldRefreshToken) => {
+  try {
+    const decoded = verifyRefreshToken(oldRefreshToken);
+    const newRefreshToken = generateRefreshToken(decoded.id);
+    return { valid: true, newRefreshToken };
+  } catch (error) {
+    return { valid: false };
+  }
+};
+
+module.exports = {
+  generateToken,
+  generateRefreshToken,
+  verifyToken,
+  verifyRefreshToken,
+  rotateRefreshToken,
 };

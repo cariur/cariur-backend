@@ -1,26 +1,63 @@
-// middleware/authMiddleware.js
 const jwt = require("jsonwebtoken");
+const { generateTokens } = require("../config/jwt");
 const User = require("../models/User");
-const { verifyToken } = require("../utils/jwtUtils");
-const protect = async (req, res, next) => {
-  let token;
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
-    try {
-      token = req.headers.authorization.split(" ")[1];
-      const decoded = verifyToken(token);
+const getCookieOptions = (req) => {
+  const isProduction = process.env.NODE_ENV === "production";
+  const isLocalhost =
+    req.get("host").includes("localhost") ||
+    req.get("host").includes("127.0.0.1");
 
-      req.user = await User.findById(decoded.id).select("-password");
-      next();
-    } catch (error) {
-      return res.status(401).json({ message: "Not authorized, token failed" });
-    }
-  } else {
-    return res.status(401).json({ message: "Not authorized, no token" });
-  }
+  return {
+    httpOnly: true,
+    secure:
+      isProduction ||
+      req.secure ||
+      req.headers["x-forwarded-proto"] === "https",
+    sameSite: isProduction && !isLocalhost ? "None" : "Lax",
+    domain:
+      isProduction && !isLocalhost ? process.env.PRODUCTION_DOMAIN : undefined,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  };
 };
 
-module.exports = { protect };
+async function authMiddleware(req, res, next) {
+  const accessToken = req.cookies["access_token"];
+  console.log(accessToken);
+  if (!accessToken) {
+    return res.status(401).json({ message: "Access token not found" });
+  }
+  try {
+    const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
+    req.userId = decoded.userId;
+    next();
+  } catch (err) {
+    if (err.name === "TokenExpiredError") {
+      return refreshAccessToken(req, res, next);
+    }
+    return res.status(403).json({ message: "Invalid access token" });
+  }
+}
+
+async function refreshAccessToken(req, res, next) {
+  const refreshToken = req.cookies["refresh_token"];
+  if (!refreshToken) {
+    return res.status(401).json({ message: "Refresh token not found" });
+  }
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const { accessToken } = generateTokens(user);
+    const cookieOptions = getCookieOptions(req);
+    res.cookie("access_token", accessToken, cookieOptions);
+    req.userId = user.id;
+    next();
+  } catch (err) {
+    return res.status(403).json({ message: "Invalid refresh token" });
+  }
+}
+
+module.exports = { authMiddleware, refreshAccessToken };
