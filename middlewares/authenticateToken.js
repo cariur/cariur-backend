@@ -1,27 +1,18 @@
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
-const { verifyToken } = require("../utils/jwtUtils");
+const jwtUtils = require("../utils/jwtUtils");
+exports.authenticateToken = (req, res, next) => {
+  console.log("Cookies:", req.cookies); // Log cookies to verify presence of accessToken
+  const token = req.cookies.accessToken;
 
-const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-
-  if (!authHeader)
-    return res.status(401).json({ message: "Authorization header is missing" });
-
-  const token = authHeader.split(" ")[1];
-
-  if (!token) return res.status(401).json({ message: "Token is missing" });
+  if (!token) {
+    return res.status(401).json({ message: "No access token provided" });
+  }
 
   try {
-    const decoded = verifyToken(token);
-    req.user = await User.findById(decoded.id);
-
-    if (!req.user) return res.status(401).json({ message: "User not found" });
-
+    const decoded = jwtUtils.verifyToken(token);
+    req.user = decoded; // Attach user to request object
     next();
-  } catch (error) {
-    res.status(403).json({ message: "Invalid token" });
+  } catch (err) {
+    console.error("Token verification error:", err); // Log error details
+    return res.status(403).json({ message: "Invalid or expired access token" });
   }
 };
-
-module.exports = authenticateToken;

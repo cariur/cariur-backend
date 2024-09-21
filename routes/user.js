@@ -6,20 +6,16 @@ const {
   updateUserProfile,
   deleteUser,
   googleAuth,
-  refreshToken,
+  googleCallback,
 } = require("../controllers/userController");
-const authenticateToken = require("../middlewares/authenticateToken"); // Import your authentication middleware
+const { authMiddleware } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
-router.post("/auth/google", googleAuth);
+
 router.post("/register", createUser);
-router.post("/refresh-token", refreshToken);
 router.post("/login", loginUser);
-
-router.get("/profile", authenticateToken, getUserProfile);
-
-router.put("/profile", authenticateToken, updateUserProfile);
-
-router.delete("/profile", authenticateToken, deleteUser);
+router.get("/profile", authMiddleware, getUserProfile);
+router.put("/profile", authMiddleware, updateUserProfile);
+router.delete("/profile", authMiddleware, deleteUser);
 
 module.exports = router;

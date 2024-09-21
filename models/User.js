@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const Schema = mongoose;
 
 const userSchema = new mongoose.Schema(
   {
@@ -169,7 +170,7 @@ const userSchema = new mongoose.Schema(
     // ===========================
     accountSource: {
       type: String,
-      enum: ["web", "mobile", "referral", "other"],
+      enum: ["web", "mobile", "referral", "other", "google"], // Added 'google'
       default: "web",
     },
 
@@ -296,18 +297,43 @@ const userSchema = new mongoose.Schema(
       marketingEmails: { type: Boolean, default: false },
     },
 
-    // ===========================
+    // ===========================3
     // Terms Agreement
     // ===========================
     termsAgreement: {
       agreed: { type: Boolean, default: false },
       agreedAt: { type: Date },
     },
+    followers: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    following: [{ type: Schema.Types.ObjectId, ref: "User" }],
+
+    // Liked and Saved Posts
+    likedPosts: [{ type: Schema.Types.ObjectId, ref: "Post" }],
+    savedPosts: [{ type: Schema.Types.ObjectId, ref: "Post" }],
+
+    // Blocked Users
+    blockedUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
+
+    // Badges
+    badges: [
+      {
+        name: { type: String, required: true },
+        description: String,
+        awardedAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   {
     // Optionally, you can enable automatic timestamps
     timestamps: true,
   }
 );
+
+userSchema.pre("save", async function (next) {
+  if (this.isModified("password")) {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
+  next();
+});
 
 module.exports = mongoose.model("User", userSchema);
