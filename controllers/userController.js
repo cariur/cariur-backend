@@ -22,7 +22,7 @@ const getCookieOptions = (req) => {
       isProduction ||
       req.secure ||
       req.headers["x-forwarded-proto"] === "https",
-    sameSite: isProduction && !isLocalhost ? "None" : "Lax",
+    sameSite: "None",
     domain:
       isProduction && !isLocalhost ? process.env.PRODUCTION_DOMAIN : undefined,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
