@@ -4,20 +4,14 @@ const User = require("../models/User");
 
 const getCookieOptions = (req) => {
   const isProduction = process.env.NODE_ENV === "production";
-  const isLocalhost =
-    req.get("host").includes("localhost") ||
-    req.get("host").includes("127.0.0.1");
 
   return {
-    httpOnly: true,
-    secure:
-      isProduction ||
-      req.secure ||
-      req.headers["x-forwarded-proto"] === "https",
-    sameSite: isProduction && !isLocalhost ? "None" : "Lax",
-    domain:
-      isProduction && !isLocalhost ? process.env.PRODUCTION_DOMAIN : undefined,
+    httpOnly: true, // Should be true for better security
+    sameSite: isProduction ? "None" : "Lax", // Use "None" for cross-origin in production, "Lax" for localhost
+    secure: isProduction, // Enable secure cookies only in production
+    domain: process.env.PRODUCTION_DOMAIN || "localhost", // Ensure domain is properly set
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: "/",
   };
 };
 
