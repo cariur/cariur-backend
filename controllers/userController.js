@@ -19,6 +19,7 @@ const getCookieOptions = (req) => {
     secure: isProduction, // Enable secure cookies only in production
     domain: process.env.PRODUCTION_DOMAIN || "localhost", // Ensure domain is properly set
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: "/",
   };
 };
 
