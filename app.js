@@ -9,9 +9,6 @@ const uploadRoutes = require("./routes/uploadRoutes");
 const { swaggerUi, specs } = require("./swagger");
 const cors = require("cors");
 const passport = require("passport");
-const session = require("express-session");
-const cookieParser = require("cookie-parser");
-require("./config/passport");
 
 dotenv.config();
 connectDB();
@@ -19,28 +16,16 @@ connectDB();
 const app = express();
 
 app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "your-session-secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "None",
-    },
-  })
-);
-
-app.use(
   cors({
     origin: ["https://cariur.vercel.app", "http://localhost:3000"],
-    credentials: true,
+    credentials: false, // Set to false since we're not using cookies
   })
 );
 
 app.use(express.json());
-app.use(cookieParser());
 app.use(passport.initialize());
 
+// Routes
 app.use("/api", uploadRoutes);
 app.use("/", authRoutes);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));

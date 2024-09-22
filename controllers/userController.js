@@ -26,18 +26,20 @@ const getCookieOptions = (req) => {
 exports.googleAuth = passport.authenticate("google", {
   scope: ["profile", "email"],
 });
-
 exports.googleCallback = (req, res) => {
   passport.authenticate("google", { session: false }, (err, user) => {
     if (err || !user) {
       console.error(err);
       return res.redirect("/login?error=authentication_failed");
     }
+
     const { accessToken, refreshToken } = generateTokens(user);
-    const cookieOptions = getCookieOptions(req);
-    res.cookie("access_token", accessToken, cookieOptions);
-    res.cookie("refresh_token", refreshToken, cookieOptions);
-    res.redirect(process.env.FRONTEND_URL);
+
+    res.json({
+      message: "Google authentication successful",
+      accessToken,
+      refreshToken,
+    });
   })(req, res);
 };
 
@@ -95,12 +97,11 @@ exports.loginUser = async (req, res) => {
     }
 
     const { accessToken, refreshToken } = generateTokens(user);
-    const cookieOptions = getCookieOptions(req);
-    res.cookie("access_token", accessToken, cookieOptions);
-    res.cookie("refresh_token", refreshToken, cookieOptions);
 
     res.json({
       message: "Login successful",
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         firstName: user.firstName,
