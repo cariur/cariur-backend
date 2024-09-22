@@ -4,7 +4,7 @@ const connectDB = require("./config/db");
 const userRoutes = require("./routes/user");
 const projectRoutes = require("./routes/project");
 const authRoutes = require("./routes/auth");
-
+const otpRoutes = require("./routes/otpRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const { swaggerUi, specs } = require("./swagger");
 const cors = require("cors");
@@ -31,7 +31,7 @@ app.use("/", authRoutes);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 app.use("/api/users", userRoutes);
 app.use("/projects", projectRoutes);
-
+app.use(otpRoutes);
 // Error Handling Middleware
 app.use((err, req, res, next) => {
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
