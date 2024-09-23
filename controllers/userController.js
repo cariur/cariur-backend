@@ -45,28 +45,153 @@ exports.googleCallback = (req, res) => {
 
 exports.createUser = async (req, res) => {
   try {
-    const { firstName, lastName, username, email, password, ...rest } =
-      req.body;
+    const {
+      firstName,
+      lastName,
+      username,
+      email,
+      password,
+      profilePicture,
+      bio,
+      skills,
+      address,
+      phone,
+      website,
+      dateOfBirth,
+      gender,
+      isAdmin,
+      notifications,
+      socialMedia,
+      twoFactor,
+      isVerified,
+      verificationToken,
+      preferences,
+      lastActivity,
+      isDeleted,
+      roles,
+      verificationCode,
+      loginAttempts,
+      accountLockedUntil,
+      mentor,
+      mentees,
+      profileCompletion,
+      accountSource,
+      tags,
+      activityLogs,
+      subscription,
+      paymentInfo,
+      customFields,
+      externalIds,
+      isDeactivated,
+      deactivationReason,
+      userSettings,
+      refreshToken,
+      verificationCodeExpires,
+      verificationTokenExpires,
+      securityQuestions,
+      apiKeys,
+      oauthTokens,
+      ratings,
+      feedbackProvided,
+      loginHistory,
+      dataSharingPreferences,
+      termsAgreement,
+      followers,
+      following,
+      likedPosts,
+      savedPosts,
+      blockedUsers,
+      badges,
+    } = req.body;
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
+    }
+
+    // Generate random username if not provided
+    let finalUsername = username;
+    if (!finalUsername) {
+      const randomNum = Math.floor(Math.random() * 100000000000); // Generate a random number between 0 and 999
+      finalUsername = lastName
+        ? `${firstName}_${lastName}${randomNum}`
+        : `${firstName}${randomNum}`;
+
+      // Ensure the generated username is unique
+      while (await User.findOne({ username: finalUsername })) {
+        const newRandomNum = Math.floor(Math.random() * 100000000000);
+        finalUsername = lastName
+          ? `${firstName}_${lastName}${newRandomNum}`
+          : `${firstName}${newRandomNum}`;
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
       firstName,
       lastName,
-      username,
+      username: finalUsername,
       email,
       password: hashedPassword,
-      ...rest,
+      profilePicture,
+      bio,
+      skills,
+      address,
+      phone,
+      website,
+      dateOfBirth,
+      gender,
+      isAdmin,
+      notifications,
+      socialMedia,
+      twoFactor,
+      isVerified,
+      verificationToken,
+      preferences,
+      lastActivity,
+      isDeleted,
+      roles,
+      verificationCode,
+      loginAttempts,
+      accountLockedUntil,
+      mentor,
+      mentees,
+      profileCompletion,
+      accountSource,
+      tags,
+      securityQuestions,
+      activityLogs,
+      subscription,
+      paymentInfo,
+      customFields,
+      externalIds,
+      isDeactivated,
+      deactivationReason,
+      userSettings,
+      refreshToken,
+      verificationCodeExpires,
+      verificationTokenExpires,
+      apiKeys,
+      oauthTokens,
+      ratings,
+      feedbackProvided,
+      loginHistory,
+      dataSharingPreferences,
+      termsAgreement,
+      followers,
+      following,
+      likedPosts,
+      savedPosts,
+      blockedUsers,
+      badges,
     });
 
     const user = await newUser.save();
-    const { accessToken, refreshToken } = generateTokens(user);
+    const { accessToken, refreshToken: generatedRefreshToken } =
+      generateTokens(user);
     const cookieOptions = getCookieOptions(req);
     res.cookie("access_token", accessToken, cookieOptions);
-    res.cookie("refresh_token", refreshToken, cookieOptions);
+    res.cookie("refresh_token", generatedRefreshToken, cookieOptions);
 
     res.status(201).json({
       message: "User created successfully",
@@ -74,7 +199,9 @@ exports.createUser = async (req, res) => {
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
+        isVerified: user.isVerified,
         email: user.email,
+        username: user.username, // Include the generated username in the response
       },
     });
   } catch (error) {
@@ -107,6 +234,7 @@ exports.loginUser = async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
+        isVerified: user.isVerified,
       },
     });
   } catch (error) {

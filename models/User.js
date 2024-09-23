@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema(
     // ===========================
     // Basic Information
     // ===========================
-    firstName: { type: String, required: true },
+    firstName: { type: String, required: false },
     lastName: { type: String, required: false },
     username: { type: String, required: true, unique: true, trim: true },
     email: {
@@ -313,7 +313,8 @@ const userSchema = new mongoose.Schema(
 
     // Blocked Users
     blockedUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
-
+    profession: { type: String, required: false },
+    otp: { type: String, required: false },
     // Badges
     badges: [
       {
@@ -328,12 +329,5 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-userSchema.pre("save", async function (next) {
-  if (this.isModified("password")) {
-    this.password = await bcrypt.hash(this.password, 10);
-  }
-  next();
-});
 
 module.exports = mongoose.model("User", userSchema);
